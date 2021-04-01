@@ -1,7 +1,6 @@
 import os as os
 import time
 
-import component_use
 
 # Initialize Heatpump
 
@@ -14,7 +13,6 @@ def output_organize(base):
     rv = os.system(command)
     command = "move *.txt " + "output\\" + base
     rv = os.system(command)
-
 
 
 # Variables
