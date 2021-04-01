@@ -195,7 +195,7 @@ class TurboCor(Compressor):
         return self.actual_values[24]
 
     def temperature_suction(self):
-        return self.actual_values[0] + self.actual_values[20]  # ToDO to check why + [20]
+        return self.actual_values[0] + self.actual_values[20]  # +[20] ist superheat
 
     def temperature_discharge_saturated(self):
         return self.actual_values[19]

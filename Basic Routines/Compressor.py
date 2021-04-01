@@ -55,8 +55,8 @@ print(syear.total_seconds())
 
 print(delta.total_seconds() / syear.total_seconds())
 
-cdTGH285 = pd.read_csv('TGH285-noEcon.csv', header=9, sep=';')
-indexx = pd.read_csv('TGH285-noEcon.csv', header=9, sep=';', nrows=0)
+cdTGH285 = pd.read_csv('..\\Datenfiles\\TGH285-noEcon.csv', header=9, sep=';')
+indexx = pd.read_csv('..\\Datenfiles\\TGH285-noEcon.csv', header=9, sep=';', nrows=0)
 print(indexx)
 
 tgh285 = cdTGH285.to_numpy(copy=True)
