@@ -36,9 +36,3 @@ class Sink:  # This is the building
 
 
 
-class Pump:
-    def __init__(self, maxflow):
-        self.max_flow = maxflow
-
-    def flow(self, frac):
-        return self.max_flow * frac

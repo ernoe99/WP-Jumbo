@@ -1,6 +1,7 @@
 import os as os
 import time
 
+from component_use import *
 
 # Initialize Heatpump
 
@@ -64,23 +65,18 @@ dtsink = 5.0
 start_time = time.time()
 base = "CCC_Thermalia_375F"
 Thermalia_375F.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
-                                              sink_temperatures=sitemp, deltaT_sink=dtsink)
+                                                            sink_temperatures=sitemp, deltaT_sink=dtsink)
+output_organize(base)
 
 base = "CCC_Thermalia_375B"
 Thermalia_375.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
-                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
-command = "mkdir output\\" + base
-rv = os.system(command)
-command = "move " + base + "*.xlsx " + base
-rv = os.system(command)
+                                                           sink_temperatures=sitemp, deltaT_sink=dtsink)
+output_organize(base)
 
 base = "CCC_Thermalia_375E"
 Thermalia_375E.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
-                                              sink_temperatures=sitemp, deltaT_sink=dtsink)
-command = "mkdir output\\" + base
-rv = os.system(command)
-command = "move " + base + "*.xlsx " + base
-rv = os.system(command)
+                                                            sink_temperatures=sitemp, deltaT_sink=dtsink)
+output_organize(base)
 
 print("--- %s seconds ---" % (time.time() - start_time))
 

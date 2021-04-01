@@ -1,8 +1,7 @@
+import numpy as np
 import pandas as pd
 
-import numpy as np
-
-
+from Fluids import Fluid
 
 
 class Compressor:
@@ -225,8 +224,88 @@ class TurboCor(Compressor):
         return self.actual_values[37]
 
 
+class TurboCor_noEcon(TurboCor):
+    def __init__(self, fname : str):
+        super(TurboCor_noEcon, self).__init__(fname)
+
+    def calculate_0power(self, t_suction, t_condensation):
+        valid = self.calculate_0power_noecon(t_suction, t_condensation)
+        return valid  # Results in self.actual_values_0Power
+
+    def calculate_zeropower(self, t_suction, t_condensation):
+
+        valid = self.get_values(t_suction, t_condensation, self.zeropower_noecon_data)
+        self.economizer = 0
+        return valid
+
+    def calculate_frompower(self, frompower, t_suction, t_condensation):
+
+        id1 = int(frompower / 25.0)
+        valid1 = self.get_values(t_suction, t_condensation, self.frompower_noecon_data[id1])
+        vec1 = self.actual_values
+        valid2 = self.get_values(t_suction, t_condensation, self.frompower_noecon_data[min(id1 + 1, 4)])
+        vec2 = self.actual_values
+        self.economizer = 0
+
+        if valid1 == 1 and valid2 == 1:
+            ref = [0.0, 25.0, 50.0, 75.0, 100.0]
+            for i in range(0, 38, 1):  # linear interpolation achtung 1 niedriger da, CID schon geschnitten
+                vec1[i] = vec1[i] + (vec2[i] - vec1[i]) / 25.0 * (frompower - ref[id1])
+            self.actual_values = vec1
+            valid = 1
+        else:
+            valid = 0
+        return valid
+
+
+class Pump:
+    def __init__(self, maxflow):
+        self.max_flow = maxflow
+
+    def flow(self, frac):
+        return self.max_flow * frac
+
+
+class Storage:
+    def __init__(self, inflow: Fluid, outflow: Fluid, pump : Pump, volume, temperature):
+        self.Pump = pump
+        self.Volume = volume
+        self.Inflow = inflow
+        self.Outflow = outflow
+        self.Temperature = temperature
+
+    def calculate(self, frac):
+        self.Inflow.vdot = self.Pump.flow(frac)
+        newt = self.Temperature + inflow.vdot * (self.Inflow.temperature - self.Temperature) / self.Volume
+        self.Outflow.vdot = self.Inflow.vdot
+        self.Outflow.temperature = self.Temperature
+        self.Temperature = newt
+
+        return self.Temperature
+
+
+class GascoolerCycle:
+    def __init__(self, compressor : TurboCor,  coldflow: Fluid, storage : Storage):
+        self.Compressor = compressor
+        self.Water = coldflow
+
+
+class TurboCor_GasCooler(TurboCor):
+    def __init__(self, fname, gascooler: GascoolerCycle):
+        super().__init__(self, fname)
+        self.Gascooler = gascooler
+
+    def power_condenser(self):
+        p_cond = (self.actual_values[10] - self.actual_values[9]) * (self.actual_values[13] + self.actual_values[32])
+#       p_gascooler = self.Gascooler.calculate
+
 # Hier starten die Kompressoren als Objekte verfügbar
 
 TGH285 = TurboCor('TGH285')
 TTH375 = TurboCor('TTH375')
+
+TGH285_noEcon = TurboCor_noEcon('TGH285')
+TGH375_noEcon = TurboCor_noEcon('TTH375')
+
+
 
