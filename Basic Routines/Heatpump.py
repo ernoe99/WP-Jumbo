@@ -1,13 +1,9 @@
 from TurboCor import Compressor, TurboCor
-from HeatExchanger import HeatExchanger, Heater, Condenser, Evaporator_fitted, Evaporator, AirWaterunit
+from HeatExchanger import HeatExchanger, Heater, Condenser, Evaporator_fitted, Evaporator, AirWaterunit, GasCooler, \
+    Condenser_fitted
 from Fluids import Fluid
 import pandas as pd
 import openpyxl
-
-def name_of_global_obj(xx):
-    for objname, oid in globals().items():
-        if oid is xx:
-            return objname
 
 
 class HeatPump:
@@ -17,8 +13,8 @@ class HeatPump:
 
 
 class SimpleHeatPump:
-    def __init__(self, compressor: TurboCor, condenser: Condenser, evaporator: Evaporator, source_in: Fluid,
-                 source_out: Fluid, sink_in: Fluid, sink_out: Fluid):
+    def __init__(self, compressor: TurboCor, condenser: Condenser_fitted, evaporator: Evaporator_fitted,
+                 source_in: Fluid, source_out: Fluid, sink_in: Fluid, sink_out: Fluid):
         self.target_temperature = sink_out.temperature
         self.TurboCore = compressor
         self.condenser = condenser
@@ -29,20 +25,27 @@ class SimpleHeatPump:
         self.sink_out = sink_out
         print("SimpleHeatPump initialized", compressor)
 
-    def calculate(self, t_target, frompower, t_suction, t_condensation):
+    def p_condenser(self):
+        return self.TurboCore.power_condenser()
+
+    def p_evaporator(self):
+        return self.TurboCore.power_evaporator()
+
+    def calculate(self, frompower, t_suction, t_condensation):
+
         valid = self.TurboCore.calculate_frompower(frompower, t_suction, t_condensation)
         if valid != 1:
             print("Failure in Compressor valid = ", valid)
             quit("Failure")
-        t_condensation_new = self.condenser.solvebalance(self.sink_in, self.TurboCore.power_condenser())[0]
-        print("TurboCore Condenser Power: ", self.TurboCore.power_condenser(), t_condensation_new)
-        self.sink_out.temperature = self.sink_in.heat(self.TurboCore.power_condenser() * 1000.0)
+        t_condensation_new = self.condenser.solvebalance(self.sink_in, self.p_condenser())[0]
+        print("TurboCore Condenser Power: ", self.p_condenser(), t_condensation_new)
+        self.sink_out.temperature = self.sink_in.heat(self.p_condenser() * 1000.0)
         print("Sink out Temperature: ", self.sink_out.temperature)
-        t_suction_new = self.evaporator.solvebalance(self.source_in, -self.TurboCore.power_evaporator())[0]
-        print("TurboCore Evaporator Power: ", self.TurboCore.power_evaporator(), t_suction_new)
-        self.source_out.temperature = self.source_in.heat(-TurboCor.power_evaporator(self.TurboCore) * 1000.0)
+        t_suction_new = self.evaporator.solvebalance(self.source_in, -self.p_evaporator())[0]
+        print("TurboCore Evaporator Power: ", self.p_evaporator(), t_suction_new)
+        self.source_out.temperature = self.source_in.heat(-self.p_evaporator() * 1000.0)
         print("Temperature Source_out: ", self.source_out.temperature)
-        return [frompower, t_suction_new, t_condensation_new, t_target, self.sink_out.temperature]
+        return [frompower, t_suction_new, t_condensation_new, self.sink_out.temperature]
 
     def get_electrical_power(self):
         return self.TurboCore.power_electrical()
@@ -69,15 +72,8 @@ class SimpleHeatPump:
             if iflop == 99:
                 print("******", iflop, t_suction, t_condensation)
 
-            t_condensation_new = self.condenser.solvebalance(self.sink_in, self.TurboCore.power_condenser())[
-                0]  # solvebalance return x[0]
-            print("TurboCore Condenser Power: ", self.TurboCore.power_condenser(), t_condensation_new)
-            self.sink_out.temperature = self.sink_in.heat(self.TurboCore.power_condenser() * 1000.0)
-            print("Sink out Temperature: ", self.sink_out.temperature)
-            t_suction_new = self.evaporator.solvebalance(self.source_in, -self.TurboCore.power_evaporator())[0]
-            print("TurboCore Evaporator Power: ", self.TurboCore.power_evaporator(), t_suction_new)
-            self.source_out.temperature = self.source_in.heat(-TurboCor.power_evaporator(self.TurboCore) * 1000.0)
-            print("Temperature Source_out: ", self.source_out.temperature)
+            [percent_power, t_suction_new, t_condensation_new, tsinkout] = \
+                self.calculate(percent_power, t_suction, t_condensation)
 
             valid = self.TurboCore.calculate_frompower(percent_power, t_suction_new, t_condensation_new)
             if valid != 1:
@@ -85,7 +81,7 @@ class SimpleHeatPump:
                 return valid
 
         return [percent_power, t_suction, t_condensation,
-                self.sink_out.temperature, self.TurboCore.power_condenser()]  # nicht _new,da sonst Kompressordaten alt
+                self.sink_out.temperature, self.p_condenser()]  # nicht _new,da sonst Kompressordaten alt
 
     def calculate_from_flow(self, percent_power, t_target):
         # Simply give results or return 0
@@ -107,15 +103,18 @@ class SimpleHeatPump:
                 print("Failure in Compressor valid = ", valid)
                 return valid
 
-            t_condensation_new = self.condenser.solvebalance(self.sink_in, self.TurboCore.power_condenser())[
-                0]  # solvebalance return x[0]
-            print("TurboCore Condenser Power: ", self.TurboCore.power_condenser(), t_condensation_new)
-            self.sink_out.temperature = self.sink_in.heat(self.TurboCore.power_condenser() * 1000.0)
-            print("Sink out Temperature: ", self.sink_out.temperature)
-            t_suction_new = self.evaporator.solvebalance(self.source_in, -self.TurboCore.power_evaporator())[0]
-            print("TurboCore Evaporator Power: ", self.TurboCore.power_evaporator(), t_suction_new)
-            self.source_out.temperature = self.source_in.heat(-TurboCor.power_evaporator(self.TurboCore) * 1000.0)
-            print("Temperature Source_out: ", self.source_out.temperature)
+            [percent_power, t_suction_new, t_condensation_new, tsinkout] = self.calculate(percent_power, t_suction,
+                                                                                          t_condensation)
+
+            # t_condensation_new = self.condenser.solvebalance(self.sink_in, self.TurboCore.power_condenser())[
+            #     0]  # solvebalance return x[0]
+            # print("TurboCore Condenser Power: ", self.TurboCore.power_condenser(), t_condensation_new)
+            # self.sink_out.temperature = self.sink_in.heat(self.TurboCore.power_condenser() * 1000.0)
+            # print("Sink out Temperature: ", self.sink_out.temperature)
+            # t_suction_new = self.evaporator.solvebalance(self.source_in, -self.TurboCore.power_evaporator())[0]
+            # print("TurboCore Evaporator Power: ", self.TurboCore.power_evaporator(), t_suction_new)
+            # self.source_out.temperature = self.source_in.heat(-TurboCor.power_evaporator(self.TurboCore) * 1000.0)
+            # print("Temperature Source_out: ", self.source_out.temperature)
 
             if max(abs(t_suction - t_suction_new), abs(t_condensation - t_condensation_new), abs(t_target - self.sink_out.temperature)) > 0.05:
                 isolve = 0
@@ -342,17 +341,53 @@ class SimpleHeatPump:
             df_lowpower.to_excel(writer, sheet_name="HP-LowPower")
 
 
-class HeatPumpEconomizer(HeatPump):
-    def __init__(self, compressor: Compressor, condenser: Condenser, evaporator: Evaporator, source_in: Fluid,
-                 source_out: Fluid, sink_in: Fluid, sink_out: Fluid, economizer: Evaporator):
-        self.components = (sink_in, economizer, compressor, condenser, sink_out, source_in, evaporator, source_out)
+class GasCoolerHeatPump(SimpleHeatPump):
+    def __init__(self, compressor: TurboCor, condenser: Condenser, evaporator: Evaporator, source_in: Fluid,
+                 source_out: Fluid, sink_in: Fluid, sink_out: Fluid, gascooler : GasCooler, hotwatersink_in : Fluid,
+                 hotwaterwater_sink_out : Fluid):
+        super().__init__(compressor, condenser, evaporator, source_in, source_out, sink_in,sink_out)
+        # self.target_temperature = sink_out.temperature
+        # self.TurboCore = compressor
+        # self.condenser = condenser
+        # self.evaporator = evaporator
+        # self.source_in = source_in
+        # self.source_out = source_out
+        # self.sink_in = sink_in
+        # self.sink_out = sink_out
+        self.hotwater_sink_in = hotwatersink_in
+        self.hotwater_sink_out = hotwaterwater_sink_out
+        self.gascooler = gascooler
+        self.p_gascooler = 0.0
+        print("GasCoolerHeatPump initialized", compressor)
 
+    def p_condenser(self):
+        return self.TurboCore.power_condenser() - self.p_gascooler
+
+    def calculate(self, frompower, t_suction, t_condensation):
+        self.p_gascooler = self.gascooler.power(self.hotwater_sink_in, self.TurboCore.temperature_discharge())
+
+        valid = self.TurboCore.calculate_frompower(frompower, t_suction, t_condensation)
+        if valid != 1:
+            print("Failure in Compressor valid = ", valid)
+            quit("Failure")
+        t_condensation_new = self.condenser.solvebalance(self.sink_in, self.p_condenser())[0]
+        print("TurboCore Condenser Power: ", self.TurboCore.power_condenser(), t_condensation_new)
+        self.sink_out.temperature = self.sink_in.heat(self.p_condenser() * 1000.0)
+        print("Sink out Temperature: ", self.sink_out.temperature)
+        t_suction_new = self.evaporator.solvebalance(self.source_in, -self.TurboCore.power_evaporator())[0]
+        print("TurboCore Evaporator Power: ", self.TurboCore.power_evaporator(), t_suction_new)
+        self.source_out.temperature = self.source_in.heat(-TurboCor.power_evaporator(self.TurboCore) * 1000.0)
+        print("Temperature Source_out: ", self.source_out.temperature)
+        return [frompower, t_suction_new, t_condensation_new, self.sink_out.temperature]
+
+    def get_electrical_power(self):
+        return self.TurboCore.power_electrical()
 
 
 
 class AirWaterSimpleHeatpump(SimpleHeatPump):
     def __init__(self, compressor: TurboCor, condenser: Condenser, evaporator: Evaporator, source_in: Fluid,
-                 source_out: Fluid, sink_in: Fluid, sink_out: Fluid, economizer: Evaporator, airunit: AirWaterunit):
+                 source_out: Fluid, sink_in: Fluid, sink_out: Fluid, airunit: AirWaterunit):
         self.components = (sink_in, compressor, condenser, sink_out, source_in, airunit, evaporator, source_out)
         self.AirWaterunit = airunit
         super().__init__(compressor, condenser, evaporator, source_in, source_out, sink_in, sink_out)
@@ -360,6 +395,17 @@ class AirWaterSimpleHeatpump(SimpleHeatPump):
     def get_electrical_power(self):
         return self.TurboCore.power_electrical() + self.AirWaterunit.Fan.electric_power
 
+class AirWaterGasCoolerHeatpump(GasCoolerHeatPump):
+    def __init__(self, compressor: TurboCor, condenser: Condenser, evaporator: Evaporator, source_in: Fluid,
+                 source_out: Fluid, sink_in: Fluid, sink_out: Fluid, gascooler : GasCooler, hotwatersink_in: Fluid,
+                 hotwaterwater_sink_out: Fluid, airunit: AirWaterunit):
+        self.components = (sink_in, compressor, condenser, sink_out, source_in, airunit, evaporator, source_out)
+        self.AirWaterunit = airunit
+        super().__init__(compressor, condenser, evaporator, source_in, source_out, sink_in, sink_out, gascooler,
+                         hotwatersink_in, hotwaterwater_sink_out)
+
+    def get_electrical_power(self):
+        return self.TurboCore.power_electrical() + self.AirWaterunit.Fan.electric_power
 
 class TwoStageHeatPump(HeatPump):
     def __init__(self, hp1: HeatPump, hp2: HeatPump, compressor: Compressor, condenser: Condenser,

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from Fluids import Fluid
+from PumpsandFans import Pump
 
 
 class Compressor:
@@ -258,46 +259,9 @@ class TurboCor_noEcon(TurboCor):
         return valid
 
 
-class Pump:
-    def __init__(self, maxflow):
-        self.max_flow = maxflow
-
-    def flow(self, frac):
-        return self.max_flow * frac
 
 
-class Storage:
-    def __init__(self, inflow: Fluid, outflow: Fluid, pump : Pump, volume, temperature):
-        self.Pump = pump
-        self.Volume = volume
-        self.Inflow = inflow
-        self.Outflow = outflow
-        self.Temperature = temperature
 
-    def calculate(self, frac):
-        self.Inflow.vdot = self.Pump.flow(frac)
-        newt = self.Temperature + inflow.vdot * (self.Inflow.temperature - self.Temperature) / self.Volume
-        self.Outflow.vdot = self.Inflow.vdot
-        self.Outflow.temperature = self.Temperature
-        self.Temperature = newt
-
-        return self.Temperature
-
-
-class GascoolerCycle:
-    def __init__(self, compressor : TurboCor,  coldflow: Fluid, storage : Storage):
-        self.Compressor = compressor
-        self.Water = coldflow
-
-
-class TurboCor_GasCooler(TurboCor):
-    def __init__(self, fname, gascooler: GascoolerCycle):
-        super().__init__(self, fname)
-        self.Gascooler = gascooler
-
-    def power_condenser(self):
-        p_cond = (self.actual_values[10] - self.actual_values[9]) * (self.actual_values[13] + self.actual_values[32])
-#       p_gascooler = self.Gascooler.calculate
 
 # Hier starten die Kompressoren als Objekte verfügbar
 
@@ -305,7 +269,7 @@ TGH285 = TurboCor('TGH285')
 TTH375 = TurboCor('TTH375')
 
 TGH285_noEcon = TurboCor_noEcon('TGH285')
-TGH375_noEcon = TurboCor_noEcon('TTH375')
+TTH375_noEcon = TurboCor_noEcon('TTH375')
 
 
 

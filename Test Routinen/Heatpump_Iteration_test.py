@@ -23,6 +23,32 @@ x = Thermalia_375.calculate_from_power(50.0)
 
 print("RESULT: ", x)
 
+y = Thermalia375_Basic.calculate_from_power(50.0)
+
+print("RESULT: ", y)
+
+ye = Thermalia375_Basic_Eco.calculate_from_power(50.0)
+
+print("RESULT: ", ye)
+
+HW55_RL.temperature = 25.0
+
+z = Thermalia375_Basic_Eco_W.calculate_from_power(50.0)
+
+print("RESULT: ", z)
+
+Thermalia375_Basic_Eco_W.hotwater_sink_in.vdot = 0.0
+Thermalia375_Basic_Eco_W.hotwater_sink_out.vdot = 0.0
+
+zw = Thermalia375_Basic_Eco_W.calculate_from_power(50.0)
+
+print("RESULT: ", zw)
+
+zw = Thermalia375_Basic_Eco_W0.calculate_from_power(50.0)
+
+print("RESULT: ", zw)
+
+
 # Thermalia_375F.source_in.vdot = 12.5
 # Thermalia_375F.sink_in.vdot = 13.65212997
 # Thermalia_375.source_out.vdot = Thermalia_285.source_in.vdot
@@ -62,21 +88,35 @@ print(sctemp)
 print(sitemp)
 
 dtsink = 5.0
+
 start_time = time.time()
-base = "CCC_Thermalia_375F"
-Thermalia_375F.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+
+base = "CCC_Thermalia_Basic"
+Thermalia375_Basic.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
 output_organize(base)
 
-base = "CCC_Thermalia_375B"
-Thermalia_375.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+base = "CCC_Thermalia375_Basic_Eco"
+Thermalia375_Basic_Eco.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
                                                            sink_temperatures=sitemp, deltaT_sink=dtsink)
 output_organize(base)
 
-base = "CCC_Thermalia_375E"
-Thermalia_375E.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+base = "CCC_Thermalia375_Basic_Eco_W"
+Thermalia375_Basic_Eco_W.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
 output_organize(base)
+
+base = "CCC_Thermalia375_Performance"
+Thermalia375_Performance.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+                                                            sink_temperatures=sitemp, deltaT_sink=dtsink)
+output_organize(base)
+
+
+base = "CCC_Thermalia375_Basic_Eco_W0"
+Thermalia375_Basic_Eco_W0.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+                                                            sink_temperatures=sitemp, deltaT_sink=dtsink)
+output_organize(base)
+
 
 print("--- %s seconds ---" % (time.time() - start_time))
 

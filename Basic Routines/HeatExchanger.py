@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.optimize import fsolve
 
 from Fluids import Fluid, Heatwater, Brine, Air, WetAir, Burned_Air
+from PumpsandFans import Fan
 
 
 class HeatExchanger:
@@ -193,21 +194,6 @@ class Heater(HeatExchanger):
         return hg
 
 
-class Fan:
-    def __init__(self, efficiency, max_volume, dpressure):
-        self.efficiency = efficiency
-        self.max_volume = max_volume
-        self.max_dpressure = dpressure
-        self.electric_power = dpressure * max_volume / efficiency
-
-    def d_pressure(self, air):
-        return self.max_dpressure * (max(air.vdot / self.max_volume, 1.0))**2
-
-    def calculate(self, air: WetAir):
-        self.electric_power = self.d_pressure(air) * air.vdot / self.efficiency
-        return self.electric_power
-
-
 
 class AirWaterunit(HeatExchanger):
     def __init__(self, fan: Fan, area, htc):
@@ -217,3 +203,25 @@ class AirWaterunit(HeatExchanger):
     def calculate_with_fan(self, air, water):
         qwater = self.calculate(air, water, 2)   # 2   crossflow
         return qwater + 0.9 * self.Fan.electric_power
+
+
+class GasCooler(HeatExchanger):
+    def __init__(self, pump, kA):
+        self.Pump = pump
+        self.ua = kA
+
+    def power(self, heatwater_in: Fluid, t_hotgas):
+        if heatwater_in.temperature > t_hotgas:
+            heatwater_in.vdot = 0.0
+            qheat = 0.0
+        else:
+            qheat = self.ua * (t_hotgas - heatwater_in.temperature) / 1000.0
+        return qheat
+
+
+class NoGasCooler(GasCooler):
+    def __init__(self):
+        pump = NoPump
+        super(NoGasCooler, self).__init__(pump, 0.0)
+
+

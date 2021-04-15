@@ -1,4 +1,4 @@
-class System:
+ class System:
     def __init__(self, components, actors, sensors):
         self.components = components
         self.actors = actors

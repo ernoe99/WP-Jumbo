@@ -4,7 +4,9 @@ import pandas as pd
 import Fluids
 import HeatExchanger
 import Heatpump
-import TurboCor
+import PumpsandFans
+
+from TurboCor import TTH375, TGH285, TGH285_noEcon, TTH375_noEcon
 
 # Heat Exchangers
 
@@ -27,10 +29,23 @@ B427Hx400 = HeatExchanger.Condenser_fitted(400, 0.194, 750.0, (719.56, 37.262, 0
 
 B65Hx348 = HeatExchanger.Evaporator_fitted(348, 0.257, 900, (100.75, 78.439, -1.6407))
 
+
+# Pumps
+
+PumpSource = PumpsandFans.Pump(20.0, 2.0, 0.8)   # Dummy Source pump
+PumpSink = PumpsandFans.Pump(20.0, 2.0, 0.8)   # Dummy Sink pump
+PumpHW = PumpsandFans.Pump(10.0, 1.0, 0.8)   # Dummy heatwater pump
+
+
 # Heaters
 
 
 # Air water units
+
+# Gas cooler
+
+GCdummy = HeatExchanger.GasCooler(PumpHW, 1000.0)
+
 
 
 # Standard Sources
@@ -41,22 +56,52 @@ W35_250 = Fluids.Heatwater(35.0, 11.96)
 W35_350 = Fluids.Heatwater(35.0, 16.75)
 W35_RL_250 = Fluids.Heatwater(30.0, 11.96)
 W35_RL_350 = Fluids.Heatwater(30.0, 16.75)
+HW55_RL = Fluids.Heatwater(55.0, 3.0)
+HW57_VL = Fluids.Heatwater(57.0, 3.0)
+HW55_RL_0 = Fluids.Heatwater(55.0, 0.0)   # Fuer Heisswasser abgeschaltet
+HW57_VL_0 = Fluids.Heatwater(57.0, 0.0)   # Fuer Heisswasser abgeschaltet
 
 # Heat Pumps
-Thermalia_375 = Heatpump.SimpleHeatPump(compressor=TurboCor.TTH375, condenser=B427Hx140, evaporator=CSF2880,
+Thermalia_375 = Heatpump.SimpleHeatPump(compressor=TTH375, condenser=B427Hx140, evaporator=CSF2880,
                                         sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo, source_out=source_out)
-Thermalia_375F = Heatpump.SimpleHeatPump(compressor=TurboCor.TTH375, condenser=B427Hx400, evaporator=CSF2880,
+Thermalia_375F = Heatpump.SimpleHeatPump(compressor=TTH375, condenser=B427Hx400, evaporator=CSF2880,
                                          sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo, source_out=source_out)
-Thermalia_375E = Heatpump.SimpleHeatPump(compressor=TurboCor.TTH375, condenser=B427Hx140, evaporator=B65Hx348,
+Thermalia_375E = Heatpump.SimpleHeatPump(compressor=TTH375, condenser=B427Hx140, evaporator=B65Hx348,
                                          sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo, source_out=source_out)
 
 
-Thermalia_285 = Heatpump.SimpleHeatPump(compressor=TurboCor.TGH285, condenser=B427Hx140, evaporator=CSF2880,
+Thermalia_285 = Heatpump.SimpleHeatPump(compressor=TGH285, condenser=B427Hx140, evaporator=CSF2880,
                                         sink_in=W35_RL_250, sink_out=W35_250, source_in=B0_Geo, source_out=source_out)
-Thermalia_285F = Heatpump.SimpleHeatPump(compressor=TurboCor.TGH285, condenser=B427Hx400, evaporator=CSF2880,
+Thermalia_285F = Heatpump.SimpleHeatPump(compressor=TGH285, condenser=B427Hx400, evaporator=CSF2880,
                                          sink_in=W35_RL_250, sink_out=W35_250, source_in=B0_Geo, source_out=source_out)
 
-print("Heat pumps initiated")
+print("Heat pumps first stage initiated")
+
+# Heat pumps - second stage
+
+Thermalia375_Basic = Heatpump.SimpleHeatPump(compressor=TTH375_noEcon, condenser=B427Hx140, evaporator=B65Hx348,
+                                             sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo,
+                                             source_out=source_out)
+
+Thermalia375_Basic_Eco = Heatpump.SimpleHeatPump(compressor=TTH375, condenser=B427Hx140, evaporator=B65Hx348,
+                                                 sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo,
+                                                 source_out=source_out)
+
+Thermalia375_Basic_Eco_W = Heatpump.GasCoolerHeatPump(compressor=TTH375, condenser=B427Hx140, evaporator=B65Hx348,
+                                                      sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo,
+                                                      source_out=source_out,
+                                                      gascooler=GCdummy, hotwatersink_in=HW55_RL,
+                                                      hotwaterwater_sink_out=HW57_VL)
+# Heatpump with gascooler but no water flow
+Thermalia375_Basic_Eco_W0 = Heatpump.GasCoolerHeatPump(compressor=TTH375, condenser=B427Hx140, evaporator=B65Hx348,
+                                                       sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo,
+                                                       source_out=source_out,
+                                                       gascooler=GCdummy, hotwatersink_in=HW55_RL_0,
+                                                       hotwaterwater_sink_out=HW57_VL_0)
+
+Thermalia375_Performance = Heatpump.SimpleHeatPump(compressor=TTH375, condenser=B427Hx400, evaporator=CSF2880,
+                                                   sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo,
+                                                   source_out=source_out)
 
 
 #######################################
