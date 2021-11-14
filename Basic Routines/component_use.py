@@ -103,6 +103,31 @@ Thermalia375_Performance = Heatpump.SimpleHeatPump(compressor=TTH375, condenser=
                                                    sink_in=W35_RL_350, sink_out=W35_350, source_in=B0_Geo,
                                                    source_out=source_out)
 
+############################################################  TTH 285 ##########################
+Thermalia285_Basic = Heatpump.SimpleHeatPump(compressor=TGH285_noEcon, condenser=B427Hx140, evaporator=B65Hx348,
+                                             sink_in=W35_RL_250, sink_out=W35_250, source_in=B0_Geo,
+                                             source_out=source_out)
+
+Thermalia285_Basic_Eco = Heatpump.SimpleHeatPump(compressor=TGH285, condenser=B427Hx140, evaporator=B65Hx348,
+                                                 sink_in=W35_RL_250, sink_out=W35_250, source_in=B0_Geo,
+                                                 source_out=source_out)
+
+Thermalia285_Basic_Eco_W = Heatpump.GasCoolerHeatPump(compressor=TGH285, condenser=B427Hx140, evaporator=B65Hx348,
+                                                      sink_in=W35_RL_250, sink_out=W35_250, source_in=B0_Geo,
+                                                      source_out=source_out,
+                                                      gascooler=GCdummy, hotwatersink_in=HW55_RL,
+                                                      hotwaterwater_sink_out=HW57_VL)
+# Heatpump with gascooler but no water flow
+Thermalia285_Basic_Eco_W0 = Heatpump.GasCoolerHeatPump(compressor=TGH285, condenser=B427Hx140, evaporator=B65Hx348,
+                                                       sink_in=W35_RL_250, sink_out=W35_250, source_in=B0_Geo,
+                                                       source_out=source_out,
+                                                       gascooler=GCdummy, hotwatersink_in=HW55_RL_0,
+                                                       hotwaterwater_sink_out=HW57_VL_0)
+
+Thermalia285_Performance = Heatpump.SimpleHeatPump(compressor=TGH285, condenser=B427Hx400, evaporator=CSF2880,
+                                                   sink_in=W35_RL_250, sink_out=W35_250, source_in=B0_Geo,
+                                                   source_out=source_out)
+
 
 #######################################
 

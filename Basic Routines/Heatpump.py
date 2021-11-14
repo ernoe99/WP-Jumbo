@@ -395,6 +395,24 @@ class AirWaterSimpleHeatpump(SimpleHeatPump):
     def get_electrical_power(self):
         return self.TurboCore.power_electrical() + self.AirWaterunit.Fan.electric_power
 
+    def calculate(self, frompower, t_suction, t_condensation):   # Overriding calculate for AirWater HP
+
+        q_ae = self.AirWaterunit.calculate_with_fan(self.AirWaterunit.Air, self.source_out)
+        self.source_in.temperature = self.source_out.heat(q_ae)  # TODO super().calculate
+        valid = self.TurboCore.calculate_frompower(frompower, t_suction, t_condensation)
+        if valid != 1:
+            print("Failure in Compressor valid = ", valid)
+            quit("Failure")
+        t_condensation_new = self.condenser.solvebalance(self.sink_in, self.p_condenser())[0]
+        print("TurboCore Condenser Power: ", self.p_condenser(), t_condensation_new)
+        self.sink_out.temperature = self.sink_in.heat(self.p_condenser() * 1000.0)
+        print("Sink out Temperature: ", self.sink_out.temperature)
+        t_suction_new = self.evaporator.solvebalance(self.source_in, -self.p_evaporator())[0]
+        print("TurboCore Evaporator Power: ", self.p_evaporator(), t_suction_new)
+        self.source_out.temperature = self.source_in.heat(-self.p_evaporator() * 1000.0)
+        print("Temperature Source_out: ", self.source_out.temperature)
+        return [frompower, t_suction_new, t_condensation_new, self.sink_out.temperature]
+
 class AirWaterGasCoolerHeatpump(GasCoolerHeatPump):
     def __init__(self, compressor: TurboCor, condenser: Condenser, evaporator: Evaporator, source_in: Fluid,
                  source_out: Fluid, sink_in: Fluid, sink_out: Fluid, gascooler : GasCooler, hotwatersink_in: Fluid,

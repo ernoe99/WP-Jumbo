@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from scipy.interpolate import griddata
+
 
 from Fluids import Fluid
 from PumpsandFans import Pump
@@ -17,7 +19,7 @@ class Compressor:
 
 
 class TurboCor(Compressor):
-    def __init__(self, fname : str):
+    def __init__(self, fname: str):
         # optimal data w/o Economizer
         fname = "..\\Datenfiles\\" + fname
         fcsv = fname + '-noEcon_0Power.csv'
@@ -41,8 +43,8 @@ class TurboCor(Compressor):
         self.frompower_econ_data = linedat.reshape(5, 17, 31, 39)
 
         valid = self.calculate_frompower(frompower=50.0, t_suction=0.0, t_condensation=37.5)
-        print ("TurboCor Init: ", fname, "Minimum Power 50% 0 37.5 Grad: ", self.power_minimum(),
-               " Maximum Power: ", self.power_maximum())
+        print("TurboCor Init: ", fname, "Minimum Power 50% 0 37.5 Grad: ", self.power_minimum(),
+              " Maximum Power: ", self.power_maximum())
         self.economizer = 0
 
     def calculate_0power_econ(self, t_suction, t_condensation):
@@ -59,7 +61,8 @@ class TurboCor(Compressor):
                 idx + 1, jdx + 1, 14] != 0:
 
                 for i in range(1, 39, 1):  # linear interpolation
-                    w11 = rs[idx, jdx, i] + (rs[idx + 1, jdx, i] - rs[idx, jdx, i]) / 3.0 * (t_suction - rs[idx, jdx, 1])
+                    w11 = rs[idx, jdx, i] + (rs[idx + 1, jdx, i] - rs[idx, jdx, i]) / 3.0 * (
+                                t_suction - rs[idx, jdx, 1])
                     w12 = rs[idx, jdx + 1, i] + (rs[idx + 1, jdx + 1, i] - rs[idx, jdx + 1, i]) / 3.0 * (
                             t_suction - rs[idx, jdx + 1, 1])
                     w23 = w11 + (w12 - w11) / 2.5 * (t_condensation - rs[idx, jdx, 2])
@@ -114,7 +117,8 @@ class TurboCor(Compressor):
 
         if -17.99 <= t_suction <= 30 and -5 <= t_condensation <= 69.99:
 
-            if rs[id, jd, 14] != 0 and rs[id + 1, jd, 14] != 0 and rs[id, jd + 1, 14] != 0 and rs[id + 1, jd + 1, 14] != 0:
+            if rs[id, jd, 14] != 0 and rs[id + 1, jd, 14] != 0 and rs[id, jd + 1, 14] != 0 and rs[
+                id + 1, jd + 1, 14] != 0:
                 for i in range(1, 39, 1):  # linear interpolation
                     w11 = rs[id, jd, i] + (rs[id + 1, jd, i] - rs[id, jd, i]) / 3.0 * (t_suction - rs[id, jd, 1])
                     w12 = rs[id, jd + 1, i] + (rs[id + 1, jd + 1, i] - rs[id, jd + 1, i]) / 3.0 * (
@@ -226,7 +230,7 @@ class TurboCor(Compressor):
 
 
 class TurboCor_noEcon(TurboCor):
-    def __init__(self, fname : str):
+    def __init__(self, fname: str):
         super(TurboCor_noEcon, self).__init__(fname)
 
     def calculate_0power(self, t_suction, t_condensation):
@@ -259,6 +263,77 @@ class TurboCor_noEcon(TurboCor):
         return valid
 
 
+class PolyScroll(Compressor):
+    def __init__(self, fname: str, rpm):
+        self.rpm = rpm
+
+        # Compressor data from Polynoms with speeds
+        fname = "..\\Datenfiles\\" + fname
+        fcsv = fname
+        pddata = pd.read_csv(fcsv, sep=';')
+        linedat = pddata.to_numpy(copy=True)
+        self.poly_data = linedat
+
+    def calculate_fromrpm(self, speed, t_suction, t_condensation):
+        data = self.poly_data
+        ishift = 7
+        rpm = self.rpm
+        capacity = np.empty(4, float)  # nur fuer die Dimension der Liste
+        power = np.empty(4, float)    # nur fuer die Dimension der Liste
+        flow_rate =np.empty(4, float)     # nur fuer die Dimension der Liste
+        current = np.empty(4, float)   # nur fuer die Dimension der Liste
+
+        for isp in range(0, len(self.rpm)):
+            ic = ishift * isp + 1
+            capacity[isp] = (data[0, ic] + t_suction * data[1, ic] + t_condensation * data[2, ic] +
+                            t_suction**2 * data[3, ic] + t_suction * t_condensation * data[4, ic] +
+                            t_condensation**2 * data[5, ic] + t_suction**3 *
+                            data[6, ic] + t_suction**2 * t_condensation * data[7, ic] +
+                            t_suction * t_condensation**2 * data[8, ic] +
+                            t_condensation**3 * data[9, ic] )
+            ic += 1
+            power[isp] = (data[0, ic] + t_suction * data[1, ic] + t_condensation * data[2, ic] +
+                            t_suction**2 * data[3, ic] + t_suction * t_condensation * data[4, ic] +
+                            t_condensation**2 * data[5, ic] + t_suction**3 *
+                            data[6, ic] + t_suction**2 * t_condensation * data[7, ic] +
+                            t_suction * t_condensation**2 * data[8, ic] +
+                            t_condensation**3 * data[9, ic] )
+
+            ic += 1
+            flow_rate[isp] = (data[0, ic] + t_suction * data[1, ic] + t_condensation * data[2, ic] +
+                            t_suction**2 * data[3, ic] + t_suction * t_condensation * data[4, ic] +
+                            t_condensation**2 * data[5, ic] + t_suction**3 *
+                            data[6, ic] + t_suction**2 * t_condensation * data[7, ic] +
+                            t_suction * t_condensation**2 * data[8, ic] +
+                            t_condensation**3 * data[9, ic] )
+
+            ic += 1
+            current[isp] = (data[0, ic] + t_suction * data[1, ic] + t_condensation * data[2, ic] +
+                            t_suction**2 * data[3, ic] + t_suction * t_condensation * data[4, ic] +
+                            t_condensation**2 * data[5, ic] + t_suction**3 *
+                            data[6, ic] + t_suction**2 * t_condensation * data[7, ic] +
+                            t_suction * t_condensation**2 * data[8, ic] +
+                            t_condensation**3 * data[9, ic] )
+
+
+        cap = griddata(np.array(self.rpm), capacity, speed, method='linear')
+        pow = griddata(np.array(self.rpm), power, speed, method='linear')
+        flow = griddata(np.array(self.rpm), flow_rate, speed, method='linear')
+        cur = griddata(np.array(self.rpm), current, speed, method='linear')
+        coolcap = cap - pow
+        cop = cap / pow
+
+
+        return np.array((cap, pow, flow,cur, coolcap, cop))
+
+    def h2 (self, Pel, h1, mdot_refC, minj, hinj):
+        # Get Hotgas Enthalpy
+
+        h1_ges = ((mdot_refC - minj) * h1 + minj * hinj) / mdot_refC
+
+        h2_ges = h1_ges + Pel / mdot_refC
+
+        return h2_ges
 
 
 
@@ -271,5 +346,6 @@ TTH375 = TurboCor('TTH375')
 TGH285_noEcon = TurboCor_noEcon('TGH285')
 TTH375_noEcon = TurboCor_noEcon('TTH375')
 
+AVB87DA203_50kW = PolyScroll('Belaria_100_R32_Mitsubishi_Polynome_AVB87DA203_50kW.csv', [30, 60, 100, 120])
 
-
+print(AVB87DA203_50kW.calculate_fromrpm(120, -6, 35.5))

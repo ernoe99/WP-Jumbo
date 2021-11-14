@@ -91,32 +91,59 @@ dtsink = 5.0
 
 start_time = time.time()
 
-base = "CCC_Thermalia_Basic"
-Thermalia375_Basic.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+# base = "CCC_Thermalia375_Basic"
+# Thermalia375_Basic.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+#                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
+# output_organize(base)
+#
+# base = "CCC_Thermalia375_Basic_Eco"
+# Thermalia375_Basic_Eco.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+#                                                            sink_temperatures=sitemp, deltaT_sink=dtsink)
+# output_organize(base)
+#
+# base = "CCC_Thermalia375_Basic_Eco_W"
+# Thermalia375_Basic_Eco_W.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+#                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
+# output_organize(base)
+#
+# base = "CCC_Thermalia375_Performance"
+# Thermalia375_Performance.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+#                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
+# output_organize(base)
+#
+#
+# base = "CCC_Thermalia375_Basic_Eco_W0"
+# Thermalia375_Basic_Eco_W0.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+#                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
+# output_organize(base)
+
+
+######################################### TGH 285 ################################################
+base = "CCC_Thermalia285_Basic"
+Thermalia285_Basic.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
 output_organize(base)
 
-base = "CCC_Thermalia375_Basic_Eco"
-Thermalia375_Basic_Eco.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+base = "CCC_Thermalia285_Basic_Eco"
+Thermalia285_Basic_Eco.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
                                                            sink_temperatures=sitemp, deltaT_sink=dtsink)
 output_organize(base)
 
-base = "CCC_Thermalia375_Basic_Eco_W"
-Thermalia375_Basic_Eco_W.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+base = "CCC_Thermalia285_Basic_Eco_W"
+Thermalia285_Basic_Eco_W.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
 output_organize(base)
 
-base = "CCC_Thermalia375_Performance"
-Thermalia375_Performance.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+base = "CCC_Thermalia285_Performance"
+Thermalia285_Performance.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
 output_organize(base)
 
 
-base = "CCC_Thermalia375_Basic_Eco_W0"
-Thermalia375_Basic_Eco_W0.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
+base = "CCC_Thermalia285_Basic_Eco_W0"
+Thermalia285_Basic_Eco_W0.operating_field_fromFLow_multi(basefilename=base, source_temperatures=sctemp,
                                                             sink_temperatures=sitemp, deltaT_sink=dtsink)
 output_organize(base)
-
 
 print("--- %s seconds ---" % (time.time() - start_time))
 

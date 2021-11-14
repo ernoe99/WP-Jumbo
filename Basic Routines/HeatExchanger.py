@@ -96,7 +96,7 @@ class TwophaseHX(HeatExchanger):
         # uaeff = eps * capacity / (1 - eps)
         # qwater = uaeff * (t2phase - temperature_water_in)
         qwater = eps * capacity * (t2phase - temperature_water_in)
-        # print("In balancehx: result: ", q_condenser - qwater, qwater, eps, uaeff, ntu, t2phase)
+        print("In balancehx: result: ", q_condenser - qwater, qwater, eps,  ntu, t2phase)
         return q_condenser - qwater
 
     def fithx2phase(self, inflow: Fluid, power, t2ph):
@@ -196,13 +196,26 @@ class Heater(HeatExchanger):
 
 
 class AirWaterunit(HeatExchanger):
-    def __init__(self, fan: Fan, area, htc):
+    def __init__(self, fan: Fan, air: WetAir, area, htc):
         self.Fan = fan
+        self.Air = air
         super().__init__(1.0, area, htc)
 
     def calculate_with_fan(self, air, water):
         qwater = self.calculate(air, water, 2)   # 2   crossflow
         return qwater + 0.9 * self.Fan.electric_power
+
+    def set_air_temperature(self, temp):
+        self.Air.temperature = temp
+
+    def set_air_volume(self, vol, water: Fluid =""):
+        if water == "":   # fixed speed set
+            self.Air.vdot = vol
+        else:  # optimise for balances heat capacity
+            cpx = water.capacity(self.Air.temperature)
+            rd = self.Air.density(self.Air.temperature)
+            self.Air.vdot = cpx / self.Air.cp_t(self.Air.temperature) / rd
+        return self.Air.vdot
 
 
 class GasCooler(HeatExchanger):

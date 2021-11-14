@@ -107,7 +107,7 @@ class WetAir(Air):
         K2 = 17.5043
         K3 = 241.2
 
-        return K3 * ((K2 * temp) / (K3 + temp) + math.log(phi)) / (K2 * K3 / (K3 + temp) - math.log(phi));
+        return K3 * ((K2 * temp) / (K3 + temp) + math.log(phi)) / (K2 * K3 / (K3 + temp) - math.log(phi))
 
     def t_h_x_p(self, h, x, p):   # Umkehrfunktion zu h_t_x_p
         return (h - x * self.hv_t(0.0)) / (1.006 + 1.86*x)
@@ -119,12 +119,12 @@ class WetAir(Air):
 
     def h_t_x_p(self, temp, xact, p):
         xs = self.xs_t_p(temp, p)
-        cpx = 1006.0
+        cpx = 1.006
         if xact > xs:
-            h = temp * cpx + xs * (hv_t(0) + 1.86 * temp)
+            h = 1000.0*(temp * cpx + xs * (self.hv_t(0) + 1.86 * temp))
             xliquid = xact - xs
         else:
-            h = temp * cpx + x * (hv_t(0) + 1.86 * temp)
+            h = 1000*(temp * cpx + xact * (self.hv_t(0) + 1.86 * temp))
             xliquid = 0
         return [h, xliquid]
 
@@ -145,6 +145,16 @@ class Burned_Air:
     def heat(self, qdot):
         return self.temperature + qdot / self.capacity(1)
 
+class HAir(Air):
+    def __init__(self, temp, volflow, rf):
+        super().__init__(temp, volflow)
+        self.cp = 1006.0
+        self.rF = rf     # relative Feuchte o-1
+        self.pressure = 101325.0
+        self.Ktemperature = temp + 273.15
+        self.temperature = temp
+
+
 
 
 # Initialisierung wichtiger stati
@@ -152,4 +162,17 @@ class Burned_Air:
 air_2 = WetAir(2.0, 1000.0, 0.8)  # Achtung luft in m3/s Wasser in l/s
 ground_0 = Brine(0.0, 25.0)       # 0 Grad 25 l/s Wasser Glykol 60/40
 
+h = air_2.h_t_x_p(2, air_2.x_t_phi_p(2, 0.8, 101325), 101325)
+print(h)
 
+h = air_2.h_t_x_p(-3, air_2.x_t_phi_p(-3, 1, 101325), 101325)
+print(h)
+
+print(air_2.hv_t(0))
+
+for i in [3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7]:
+    t = float(i)
+    xs = air_2.xs_t_p(t,101325)
+    hx = air_2.h_t_x_p(t,xs,101325)
+    # print(f"{t}  {xs} {hx[0]}")
+    print(f"{hx[0]} ")

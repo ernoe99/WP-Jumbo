@@ -140,6 +140,15 @@ B427Hx140.loop_vdot_HX(f13, 300)
 
 print(B427Hx140.solvebalance(f13, 300.0))
 
+DP310Hx158 = Condenser(158, 0.1253, 1100.0)
+
+power = [50, 60, 70, 80, 90, 100.0, 110.0, 120.0, 130.0]
+volu = [2.393, 2.872, 3.351, 3.83, 4.308, 4786, 5.265, 5.744, 6.222]
+
+for i in range(0, len(volu)):
+    f12 = Heatwater(temp=30, volflow=volu[i])
+    hfit = DP310Hx158.fithx2phase(f12, power[i], 35.7)
+    print(" Data: ", volu[i], power[i], hfit)
 
 
 
