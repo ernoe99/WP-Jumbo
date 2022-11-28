@@ -109,7 +109,6 @@ CSF2880_fitted = Evaporator_fitted(306, 0.4183, 250, (-22.616, 110.69, -3.007))
 print("stop")
 print(" Fitted: ", CSF2880_fitted.ua, CSF2880_fitted.ua, CSF2880_fitted.ua)
 
-print(" Fitted: ", CSF2880_fitted.uaf(9.0), CSF2880_fitted.uaf(11.0), CSF2880_fitted.uaf(21.0))
 print(" Fitted: ", CSF2880_fitted.ntu(f11))
 
 loop_test_evaporator(CSF2880_fitted, 0, 11.96, -250.0)
@@ -133,7 +132,8 @@ for i in range(0, len(volu)):
 B427Hx140 = Condenser_fitted(140, 0.192, 750.0, (1058, 64.855, 0.0))
 
 area = 26.7
-print(" Fitted: ", B427Hx140 .uaf(9.572)/area, B427Hx140 .uaf(11.97)/area, B427Hx140 .uaf(19.14)/area)
+# print(" Fitted: ", B427Hx140 .uaf(9.572)/area, B427Hx140 .uaf(11.97)/area, B427Hx140 .uaf(19.14)/area)
+# funktioniert nicht mehr - Umstellung auf uaf(fluid: Fluid) - erst Fluid definieren und dann uaf rufen
 
 f13 = Heatwater(temp=38, volflow=14.36)
 B427Hx140.loop_vdot_HX(f13, 300)
@@ -142,9 +142,10 @@ print(B427Hx140.solvebalance(f13, 300.0))
 
 DP310Hx158 = Condenser(158, 0.1253, 1100.0)
 
-power = [50, 60, 70, 80, 90, 100.0, 110.0, 120.0, 130.0]
-volu = [2.393, 2.872, 3.351, 3.83, 4.308, 4786, 5.265, 5.744, 6.222]
+power = [20, 30, 40, 50, 60, 70, 80, 90, 100.0, 110.0, 120.0, 130.0]
+volu = [0.96,  1.44, 1.91, 2.393, 2.872, 3.351, 3.83, 4.308, 4786, 5.265, 5.744, 6.222]
 
+print("DP310Hx158")
 for i in range(0, len(volu)):
     f12 = Heatwater(temp=30, volflow=volu[i])
     hfit = DP310Hx158.fithx2phase(f12, power[i], 35.7)
@@ -181,3 +182,27 @@ print(B427Hx400.solvebalance(f13, 300.0))
 
 # B427Hx120 = Condenser_fitted(100, 0.194, 750.0, (37.262/4.0, 719.56/4.0, 0))
 # B427Hx120.loop_vdot_HX(f13, 350)
+
+# NHP for R290 - alternative Belaria concept
+
+print(" **** B85_NHPx140 **********")
+B85_NHPx140 = Condenser(140, 0.0591, 205.3)
+
+power = [10, 15, 20, 25, 30, 35, 40.0, 45.0, 50.0]
+volu = [0.535, 0.802, 1.069, 1.337, 1.604, 1.871, 2.139, 2.406, 2.673]
+
+for i in range(0, len(volu)):
+    f12 = Brine(temp=50, volflow=volu[i])
+    hfit = B85_NHPx140.fithx2phase(f12, power[i], 55.1)
+    print(" Data: ", volu[i], power[i], hfit)
+
+B85_NHPx140 = Condenser_fitted(140, 0.0591, 750.0, (758.5, 153.63, -5.5628))
+
+area = 8.28
+# print(" Fitted: ", B85_NHPx140.uaf(9.572)/area, B85_NHPx140.uaf(11.97)/area, B85_NHPx140.uaf(19.14)/area)
+# funktioniert nicht mehr - Umstellung auf uaf(fluid: Fluid) - erst Fluid definieren und dann uaf rufen
+
+f13 = Heatwater(temp=50, volflow=2.673)
+B85_NHPx140.loop_vdot_HX(f13, 50)
+
+print(B85_NHPx140.solvebalance(f13, 50.0))

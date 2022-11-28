@@ -27,3 +27,5 @@ dpres = 67.0
 
 value_16T67 = griddata(FanData, FanPower, (vol, dpres), method='nearest')
 value_16T67lin = griddata(FanData, FanPower, (vol, dpres), method='linear')
+
+print(value_16T67lin, value_16T67)

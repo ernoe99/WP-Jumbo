@@ -97,6 +97,10 @@ class OEMFan(Fan):
 
         return power
 
+    def get_all(self, volume, dpressure, Temperature):
+        return np.array((self.get_rpm(volume, dpressure, Temperature),
+                         self.get_power(volume, dpressure, Temperature),
+                         self.get_acoustic(volume, dpressure, Temperature)))
 
 EBM_W3G910_KU25 = OEMFan("EBM-W3G910-KU25", 1.15)
 
@@ -112,7 +116,23 @@ print(EBM_W3G910_KU25.get_rpm(6000.0, 67.4, 25.0))
 print(EBM_W3G910_KU25.get_rpm(16000.0, 67.4, 0.0))
 print(EBM_W3G910_KU25.get_rpm(16000.0, 67.4, -40.0))
 
+ZA_FP063 = OEMFan("ZA_FP063", 1.182)
 
+print(ZA_FP063.get_rpm(6000, 34.5, 25))
+print(ZA_FP063.get_acoustic(6000, 45, -20))
+print(ZA_FP063.get_power(6500, 45.0, -20))
+print(ZA_FP063.get_power(6500, 45.0, 60))
+print(ZA_FP063.get_all(6500, 45.0, 60))
+
+
+
+ZA_ZN100 = OEMFan("ZA_ZN100-ZILGG", 1.162)
+
+print(ZA_ZN100.get_rpm(16000, 134.5, 25))
+print(ZA_ZN100.get_acoustic(16000, 145, -20))
+print(ZA_ZN100.get_power(16500, 145.0, -20))
+print(ZA_ZN100.get_power(16500, 145.0, 60))
+print(ZA_ZN100.get_all(16500, 115.0, 60))
 
 # class EBM_W3G910-KU25(OEMFan):
 #     def __init__(self, rho_base = 1.15):
