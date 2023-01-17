@@ -173,7 +173,7 @@ class Sierra_Evap_IHX(LuftKM_OEMWT):
             pmax = mcp * (Tair - t2phase)
             eps = 1 - math.exp(-kAact / mcp)
             power = eps * pmax
-            print(" NTU: ", t2phase, Tcond, Tair, Airvolume, eps, kAact, power)
+            print(" Sierra_Evap_IHX.get_power: ", t2phase, Tcond, Tair, Airvolume, eps, kAact, -power)
         return -1 * power  # per Definition Verdampfer negativ
 
     def get_RefDp(self, t2phase, Tcond, Tevap, Tair, Airvolume, subcool):
@@ -271,7 +271,7 @@ class Sierra_Cond(LuftKM_OEMWT):
         power_iwt = iwt.power
         power_airhx = self.get_power(t2phase, Tcond, Tevap, Tair, Airvolume,
                                      subcool, tdisch)
-        print("In balancehx Evapiwt; ", power_iwt, power_airhx, t2phase, power - (power_airhx + power_iwt))
+        print("In balancehx Condiwt; ", power_iwt, power_airhx, t2phase, power - (power_airhx + power_iwt))
         return power - (power_airhx + power_iwt)
 
     def get_power(self, t2phase, Tcond, Tevap, Tair, Airvolume, subcool, tdisch):

@@ -75,6 +75,7 @@ print(B250ASHx90.solvebalance(HPwater, Pp))
 # Test
 
 noiwt = HeatExchanger.noiwt
+iwt800 = HeatExchanger.iwt(800.0)  # IHX mit kA = 800
 
 
 # The classes
@@ -170,6 +171,7 @@ class Belariapro65H:
             d_2 = PropsSI('D', 'T', kthg, 'P', p_cond, self.REF.name)
 
             refstate_2 = [xc[2], kthg, refstate_3[2], h_2, d_2]
+            refstate_1[0] = refstate_2[0]  # setting massflow now for refstate_1
 
             # Kondensator
 
@@ -184,17 +186,34 @@ class Belariapro65H:
             # print(PhaseSI('T', T_cond + K0 - subcool, 'P', p_cond, self.REF.name))
 
             refstate_3 = [refstate_2[0], T_cond + K0 - subcool, p_cond, h_3, d_3]
-            refstate_3E = refstate_3  # ohne IHX und Einspritzung
 
-            # ohne iwt
+            if self.IHX == noiwt:
 
-            d_4 = PropsSI('D', 'H', refstate_3E[3], 'P', p_cond, self.REF.name)  # hier H statt T wegen 2-phasen Geb.
-            refstate_4 = [refstate_3[0], K0 + T_evap, refstate_1[2], refstate_3[3], d_4]
-            # self.IHX.power = 0.0
+                refstate_3E = refstate_3  # ohne IHX und Einspritzung
+                self.IHX_power = 0.0
 
-            # Verdampfer - ohne IWT
+            else:
 
-            power = refstate_3[0] * refstate_1[3] - refstate_3[0] * refstate_3[3]
+                self.IHX_power = self.IHX.calc(refstate_3, refstate_1, self.REF.name)
+                h_3E =  refstate_3[3] - self.IHX_power / refstate_3[0]
+                T_3E = PropsSI('T', 'H', h_3E, 'P', p_cond, self.REF.name)
+                d_3E = PropsSI('D', 'T', T_3E, 'P', p_cond, self.REF.name)
+                refstate_3E = [refstate_3[0], T_3E, refstate_3[2], h_3E, d_3E]
+
+                h_4E = refstate_1[3] - self.IHX_power / refstate_1[0]
+                T_4E = PropsSI('T', 'H', h_4E, 'P', p_evap, self.REF.name)
+                d_4E = PropsSI('D', 'H', h_4E, 'P', p_evap, self.REF.name)
+                refstate_4E = [refstate_1[0], T_4E, p_evap, h_4E, d_4E]
+
+
+
+            d_4 = PropsSI('D', 'H', refstate_3E[3], 'P', p_evap, self.REF.name)  # hier H statt T wegen 2-phasen Geb.
+            refstate_4 = [refstate_3[0], K0 + T_evap, p_evap, refstate_3E[3], d_4]
+
+
+            # Verdampfer - mit/ohne IWT
+
+            power = refstate_3[0] * (refstate_1[3] - refstate_4[3])
 
             tresult = self.EV.solvebalance(self.IHX, self.air_in, T_evap, -power, T_cond, T_evap, subcool)
 
@@ -204,9 +223,10 @@ class Belariapro65H:
 
             T_evap = tresult[0]  # Setzen neue Verdampfungstemperatur in Celsius
 
+            KDpower = refstate_2[0] * (refstate_2[3] - refstate_3[3])
             print(" Aktuelle Iteration i:  ", i, T_evap, T_cond, refstate_1, refstate_2, refstate_3, refstate_4)
-            print("   Power:  EV, CMP, KD: ", power, Pelectric, self.Power,
-                  refstate_2[0] * (refstate_2[3] - refstate_3[3]))
+            print("   Power: setP, EV, IHX, CMP, KD, Balance: ", self.Power, power - self.IHX_power, self.IHX_power, Pelectric,
+                  KDpower, KDpower - (power - self.IHX_power + Pelectric))
 
         self.Tcond = T_cond
         self.Tevap = T_evap
@@ -215,7 +235,10 @@ class Belariapro65H:
         self.refstate_3 = refstate_3
         self.refstate_3E = refstate_3E
         self.refstate_4 = refstate_4
-        self.EV_power = power
+        if self.IHX != noiwt:
+            self.refstate_4E = refstate_4E
+
+        self.EV_power = power - self.IHX_power
         self.CMP_power = Pelectric
         self.KD_power = refstate_2[0] * (refstate_2[3] - refstate_3[3])
         self.IHX_power = refstate_2[0] * (refstate_3[3] - refstate_3E[3])
@@ -232,7 +255,12 @@ class Belariapro65H:
 
 Belariapro65H_SH5 = Belariapro65H(VZN175, B250ASHx90, LuftKM_OEMWT.Sierra_2519_BelPro60_SH5, noiwt, B220Hx128,
                                   ZA_FP063_4)
-HP = Belariapro65H_SH5
+
+Belariapro65H_IHX = Belariapro65H(VZN175, B250ASHx90, LuftKM_OEMWT.Sierra_2519_BelPro60_IHX, iwt800, B220Hx128,
+                                  ZA_FP063_4)
+# HP = Belariapro65H_SH5
+HP = Belariapro65H_IHX
+
 
 # Setup operating point
 vl = 55.0  # gewünschte Vorlauftemperatur - Achtung Kompressor Limits noch nicht betrachtet - nur Polynome
@@ -248,15 +276,18 @@ tc = vl + 2  # Schätzwert für die initiale Kondensationstemperatur - Delta = 2
 
 # Belariapro65H_SH5.operating_point(Tair=2, Rair=0.1, Vair=24000.0, Tvl=35.0, Trl=30.0, Power=77.0, TTdT=1.0)
 # Belariapro65H_SH5.operating_point(Tair=-7, Rair=0.1, Vair=24000.0, Tvl=55.0, Trl=50, Power=55.3, TTdT=1.0)
-Belariapro65H_SH5.operating_point(Tair=tair, Rair=0.1, Vair=vair, Tvl=vl, Trl=rl, Power=pp, TTdT=1.0)
+HP.operating_point(Tair=tair, Rair=0.1, Vair=vair, Tvl=vl, Trl=rl, Power=pp, TTdT=1.0)
 
 # Belariapro65H_SH5.loopforPower(T_cond=37.5, T_evap=-16.0, subcool=2, superheat=2, speed=140)  # Tkond, Tevap, subcool, superheat, speed
 # Belariapro65H_SH5.loopforPower(T_cond=57.5, T_evap=-16.0, subcool=2, superheat=5, speed=140)  # Tkond, Tevap, subcool, superheat, speed
-Belariapro65H_SH5.loopforPower(T_cond=tc, T_evap=tv, subcool=2, superheat=5,
+HP.loopforPower(T_cond=tc, T_evap=tv, subcool=2, superheat=5,
                                speed=sp)  # Tkond, Tevap, subcool, superheat, speed
 
-print(Belariapro65H_SH5.FAN.get_power(vair, 45.0, tair) * 4)
-pf = Belariapro65H_SH5.FAN.get_power(vair, 45.0, tair) * 4
+print(HP.FAN.get_power(vair, 45.0, tair) * 4)
+pf = HP.FAN.get_power(vair, 45.0, tair) * 4
+
+print(HP.IHX.kA)
+
 
 # Ab hier die Loop aus dem Excel - Setpoints.xlsx
 
@@ -295,11 +326,11 @@ for i in setpoints.index:
 
     val = setpoints.loc[i]
     rl = val["T Vorlauf"] - val["dT Wasser"]
-    Belariapro65H_SH5.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
+    HP.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
                                       Tvl=val["T Vorlauf"],
                                       Trl=rl, Power=val["Heizleistung [kW]"], TTdT=1.0)
 
-    Belariapro65H_SH5.loopforPower(T_cond=val["T Vorlauf"] + 2.0, T_evap=val["T Luft ein"] - 8.0, subcool=2,
+    HP.loopforPower(T_cond=val["T Vorlauf"] + 2.0, T_evap=val["T Luft ein"] - 8.0, subcool=2,
                                    superheat=2,
                                    speed=val[
                                        "Speed Cmp [rps]"])  # Tkond, Tevap, subcool, superheat, speed initialisiert
@@ -311,11 +342,11 @@ for i in setpoints.index:
         # Angeforderte Leistung ist grösser als berechnete - Reduktion der angeforderten Leistung -
         # sollte nur bei Pmax Anforderung sein. Reduktion der Leistungsanforderung bei gleicher Kompressordrehzahl
 
-        Belariapro65H_SH5.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
+        HP.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
                                           Tvl=val["T Vorlauf"],
-                                          Trl=rl, Power=HP.KD_power / 1000.0, TTdT=1.0)
+                                          Trl=rl, Power=HP.KD_power / 1000.0, TTdT=HP.TTdT)
 
-        Belariapro65H_SH5.loopforPower(T_cond=val["T Vorlauf"] + 2.0, T_evap=val["T Luft ein"] - 8.0, subcool=2,
+        HP.loopforPower(T_cond=HP.Tcond, T_evap=HP.Tevap, subcool=2,
                                        superheat=2,
                                        speed=val[
                                            "Speed Cmp [rps]"])  # Tkond, Tevap, subcool, superheat, speed initialisiert
@@ -326,12 +357,12 @@ for i in setpoints.index:
         # Angeforderte Leistung ist kleiner als berechnete - Reduktion der angeforderten Kompressordrehzahl linear -
         # sollte nur bei Teillastpunkten sein. Reduktion der Kompressordrehzahl gleiche Leistungsanforderung
 
-        Belariapro65H_SH5.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
+        HP.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
                                           Tvl=val["T Vorlauf"],
-                                          Trl=rl, Power=val["Heizleistung [kW]"], TTdT=1.0)
+                                          Trl=rl, Power=val["Heizleistung [kW]"], TTdT=HP.TTdT)
         # neue Drehzahl linear
         newspeed = val["Heizleistung [kW]"] / (HP.KD_power / 1000.0) * val["Speed Cmp [rps]"]
-        Belariapro65H_SH5.loopforPower(T_cond=val["T Vorlauf"] + 2.0, T_evap=val["T Luft ein"] - 8.0, subcool=2,
+        HP.loopforPower(T_cond=HP.Tcond, T_evap=HP.Tevap, subcool=2,
                                        superheat=2,
                                        speed=newspeed)  # Tkond, Tevap, subcool, superheat, speed initialisiert
         Result_df.loc[i, "Speed Cmp [rps]"] = newspeed  # Korrektur der Kompressordrehzahl

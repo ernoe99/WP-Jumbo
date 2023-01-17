@@ -2,6 +2,7 @@ from CoolProp.HumidAirProp import HAPropsSI
 from CoolProp.CoolProp import PropsSI, PhaseSI
 import numpy as np
 import pandas as pd
+import time
 import openpyxl
 import xlwt
 import math
@@ -98,7 +99,8 @@ class Belariapro65C:
         self.Tvl = Tvl
         self.Trl = Trl
         self.Power = Power * 1000
-        self.Vdot = self.Power / 4184.0 / (Trl - Tvl)  # Achtung Wert aus Fluids Heatwater fix, rl und vl für Kühlen umgekehrt
+        self.Vdot = self.Power / 4184.0 / (
+                    Trl - Tvl)  # Achtung Wert aus Fluids Heatwater fix, rl und vl für Kühlen umgekehrt
         self.TTdT = -TTdT  # Temperaturdelta im Trenntauscher Eintritt Achtung negativ beim Kühlen
 
         #   self.Air = Fluids.HAir(self.Tair, self.Vair, self.Rair)  # besser ausserhalb
@@ -114,11 +116,20 @@ class Belariapro65C:
             self.HPwater_in = Fluids.Brine(self.Heatwater_in.temperature + self.TTdT, vdot_cal)
             self.HPwater_out.vdot = self.HPwater_in.vdot
             TTpower = self.TT.calculate(self.HPwater_out, self.Heatwater_in, 1)  # 1 für Gegenstrom
-            self.HPwater_in.temperature = self.HPwater_out.heat(-TTpower)
+            # Anpassung an TTpower - noch falsch
+            while abs(abs(TTpower) - self.Power) > 10.0:
+                self.HPwater_out.temperature = self.Heatwater_in.temperature - self.Power / -TTpower * \
+                                               (self.Heatwater_in.temperature - self.HPwater_out.temperature)
+                TTpower = self.TT.calculate(self.HPwater_out, self.Heatwater_in, 1)  # 1 für Gegenstrom
+
+            self.HPwater_in.temperature = self.HPwater_out.heat(self.Power)
+            self.TTdT = self.Heatwater_out.temperature - self.HPwater_out.temperature
             # set to inflow condition Heatwater_in+TTdT
-            shiftT = self.HPwater_in.temperature - (self.Heatwater_in.temperature + self.TTdT)
-            self.HPwater_in.temperature = (self.Heatwater_in.temperature + self.TTdT)
-            self.HPwater_out.temperature = self.HPwater_out.temperature + shiftT
+            # shiftT = self.HPwater_in.temperature - (self.Heatwater_in.temperature + self.TTdT)
+            # self.HPwater_in.temperature = (self.Heatwater_in.temperature + self.TTdT)
+            # self.HPwater_out.temperature = self.HPwater_out.temperature + shiftT
+            TTpower = self.TT.calculate(self.HPwater_out, self.Heatwater_in, 1)  # 1 für Gegenstrom
+            print("Power Control im Trenntauscher: ", TTpower, self.Power)
 
         self.air_in = Fluids.HAir(Tair, Vair, Rair)
 
@@ -136,7 +147,8 @@ class Belariapro65C:
         T_cond_old = -100.0
         i = 0
 
-        while (abs(T_evap_old - T_evap) + abs(T_cond_old - T_cond)) > 1.0e-3:
+        while (abs(T_evap_old - T_evap) + abs(T_cond_old - T_cond)) > 1.0e-3 and i < 10:
+
             i += 1
             T_evap_old = T_evap
             T_cond_old = T_cond
@@ -153,7 +165,7 @@ class Belariapro65C:
 
             p_cond = PropsSI('P', 'T', K0 + T_cond, 'Q', 0.5, self.REF.name)
             h_3 = PropsSI('H', 'T', K0 + T_cond - subcool, 'P', p_cond, self.REF.name)
-            d_3 = PropsSI('D', 'T', K0 +  T_cond - subcool, 'P', p_cond, self.REF.name)
+            d_3 = PropsSI('D', 'T', K0 + T_cond - subcool, 'P', p_cond, self.REF.name)
 
             refstate_3 = [0, K0 + T_cond - subcool, p_cond, h_3, d_3]
 
@@ -200,8 +212,9 @@ class Belariapro65C:
 
             power = refstate_3[0] * refstate_1[3] - refstate_3[0] * refstate_3[3]
 
-#             tresult = self.EV.solvebalance(self.IHX, self.air_in, T_evap, -power, T_cond, T_evap, subcool)
-            tresult = self.EV.solvebalance(self.HPwater_in, -power / 1000.0)   # Hier muss Power durch 1000 dividiert werden - alte HeatExchanger routine
+            #             tresult = self.EV.solvebalance(self.IHX, self.air_in, T_evap, -power, T_cond, T_evap, subcool)
+            tresult = self.EV.solvebalance(self.HPwater_in,
+                                           -power / 1000.0)  # Hier muss Power durch 1000 dividiert werden - alte HeatExchanger routine
 
             print(tresult)
 
@@ -212,6 +225,7 @@ class Belariapro65C:
             print(" Aktuelle Iteration i:  ", i, T_evap, T_cond, refstate_1, refstate_2, refstate_3, refstate_4)
             print("   Power:  EV, CMP, Power Inp, KD: ", power, Pelectric, self.Power,
                   refstate_2[0] * (refstate_2[3] - refstate_3[3]))
+            print(" Abbruch bei: ", i, abs(T_evap_old - T_evap) + abs(T_cond_old - T_cond))
 
         self.Tcond = T_cond
         self.Tevap = T_evap
@@ -228,10 +242,14 @@ class Belariapro65C:
         self.superheat = superheat
         self.subcool = subcool
         self.REF_massflow = refstate_2[0]
-        self.dpair = HP.KD.get_AirDp(T_evap, T_cond, T_evap, self.air_in.temperature, self.air_in.vdot, subcool, self.Tdischarge)
-        self.dpref = HP.KD.get_RefDp(T_evap, T_cond, T_evap, self.air_in.temperature, self.air_in.vdot, subcool, self.Tdischarge)
-        self.charge = HP.KD.get_Refcharge(T_evap, T_cond, T_evap, self.air_in.temperature, self.air_in.vdot, subcool, self.Tdischarge)
-        self.tairout = HP.KD.get_AirTout(T_evap, T_cond, T_evap, self.air_in.temperature, self.air_in.vdot, subcool, self.Tdischarge)
+        self.dpair = HP.KD.get_AirDp(T_evap, T_cond, T_evap, self.air_in.temperature, self.air_in.vdot, subcool,
+                                     self.Tdischarge)
+        self.dpref = HP.KD.get_RefDp(T_evap, T_cond, T_evap, self.air_in.temperature, self.air_in.vdot, subcool,
+                                     self.Tdischarge)
+        self.charge = HP.KD.get_Refcharge(T_cond, T_cond, T_evap, self.air_in.temperature, self.air_in.vdot, subcool,
+                                          self.Tdischarge)
+        self.tairout = HP.KD.get_AirTout(T_cond, T_cond, T_evap, self.air_in.temperature, self.air_in.vdot, subcool,
+                                         self.Tdischarge)
 
 
 # Setup the Heatpump
@@ -273,7 +291,7 @@ setpoints = pd.read_excel("..//INPUT//CHSetpoints.xlsx")
 # Loop over setpoints
 
 colnam_hpin = ["HPFin vol", "HPFin T", "HPFout T"]  # 3
-colnam_powers = ["Pheat", "PComp", "Pevap", "Pihx", "COPH", "PFan", "COPH sum"]  # 7
+colnam_powers = ["Pheat", "PComp", "Pevap", "Pihx", "EER", "PFan", "EER sum"]  # 7
 colnam_Ref = ["Tevap", "Tcond", "Massflow Ref", "Evap dp Ref", "Evap Charge Ref", "Superheat", "Subcool"]  # 5
 colnam_Air = ["Evap dp Air", "Evap T out"]  # 2
 
@@ -284,18 +302,18 @@ hpinx = pd.DataFrame([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
 Result_df = pd.concat([setpoints, hpinx], axis=1)  # axis=1 entlang der Spalten
 
 headers = ["mflow 1", "Temperature 1", "Pressure 1", "Enhalpy 1", " Density 1",
-          "mflow 2", "Temperature 2", "Pressure 2", "Enhalpy 2", " Density 2",
-          "mflow 3", "Temperature 3", "Pressure 3", "Enhalpy 3", " Density 3",
-          "mflow 3E", "Temperature 3E", "Pressure 3E", "Enhalpy 3E", " Density 3E",
-          "mflow 4", "Temperature 4", "Pressure 4", "Enhalpy 4", " Density 4"]
+           "mflow 2", "Temperature 2", "Pressure 2", "Enhalpy 2", " Density 2",
+           "mflow 3", "Temperature 3", "Pressure 3", "Enhalpy 3", " Density 3",
+           "mflow 3E", "Temperature 3E", "Pressure 3E", "Enhalpy 3E", " Density 3E",
+           "mflow 4", "Temperature 4", "Pressure 4", "Enhalpy 4", " Density 4"]
 
 d1 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 hpinx1 = pd.DataFrame([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], columns=headers)
 
 Result_df = pd.concat([Result_df, hpinx1], axis=1)
 
-
 # print(Result_df)
+start_time = time.time()
 
 for i in setpoints.index:
 
@@ -304,6 +322,7 @@ for i in setpoints.index:
     Belariapro65C_SH5.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
                                       Tvl=val["T Vorlauf"],
                                       Trl=rl, Power=val["Kühlleistung [kW]"], TTdT=1.0)
+
 
     Belariapro65C_SH5.loopforPower(T_cond=val["T Luft ein"] + 12.0, T_evap=val["T Vorlauf"] - 5.0, subcool=2,
                                    superheat=2,
@@ -319,14 +338,14 @@ for i in setpoints.index:
 
         Belariapro65C_SH5.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
                                           Tvl=val["T Vorlauf"],
-                                          Trl=rl, Power=HP.EV_power / 1000.0, TTdT=1.0)
+                                          Trl=rl, Power=HP.EV_power / 1000.0, TTdT=HP.TTdT)
 
-        Belariapro65C_SH5.loopforPower(T_cond=val["T Luft ein"] + 12.0, T_evap=val["T Vorlauf"] - 5.0, subcool=2,
+        Belariapro65C_SH5.loopforPower(T_cond=HP.Tcond, T_evap=HP.Tevap, subcool=2,
                                        superheat=2,
                                        speed=val[
                                            "Speed Cmp [rps]"])  # Tkond, Tevap, subcool, superheat, speed initialisiert
 
-        Result_df.loc[i, "Kühlleistung [kW]"] = HP.EV_power / 1000.0  # Korrektur der Heizleistung
+        Result_df.loc[i, "Kühlleistung [kW]"] = HP.EV_power / 1000.0  # Korrektur der Kühlleistung
 
     elif val["Kühlleistung [kW]"] < 0.99 * HP.EV_power / 1000.0:
 
@@ -335,10 +354,10 @@ for i in setpoints.index:
 
         Belariapro65C_SH5.operating_point(Tair=val["T Luft ein"], Rair=0.1, Vair=val["Vol Luft [m3/h]"],
                                           Tvl=val["T Vorlauf"],
-                                          Trl=rl, Power=val["Kühlleistung [kW]"], TTdT=1.0)
+                                          Trl=rl, Power=val["Kühlleistung [kW]"], TTdT=HP.TTdT)
         # neue Drehzahl linear
         newspeed = val["Kühlleistung [kW]"] / (HP.EV_power / 1000.0) * val["Speed Cmp [rps]"]
-        Belariapro65C_SH5.loopforPower(T_cond=val["T Vorlauf"] + 2.0, T_evap=val["T Luft ein"] - 8.0, subcool=2,
+        Belariapro65C_SH5.loopforPower(T_cond=HP.Tcond, T_evap=HP.Tevap, subcool=2,
                                        superheat=2,
                                        speed=newspeed)  # Tkond, Tevap, subcool, superheat, speed initialisiert
         Result_df.loc[i, "Speed Cmp [rps]"] = newspeed  # Korrektur der Kompressordrehzahl
@@ -353,11 +372,11 @@ for i in setpoints.index:
     Result_df.loc[i, colnams[4]] = HP.CMP_power
     Result_df.loc[i, colnams[5]] = HP.EV_power
     Result_df.loc[i, colnams[6]] = HP.IHX_power
-    Result_df.loc[i, colnams[7]] = HP.KD_power / HP.CMP_power
+    Result_df.loc[i, colnams[7]] = HP.EV_power / HP.CMP_power
 
     fanpower = HP.FAN.get_power(HP.air_in.vdot, (HP.dpair * 1.2 + 10.0), HP.air_in.temperature) * HP.noFans
     Result_df.loc[i, colnams[8]] = fanpower
-    Result_df.loc[i, colnams[9]] = HP.KD_power / (HP.CMP_power + fanpower)
+    Result_df.loc[i, colnams[9]] = HP.EV_power / (HP.CMP_power + fanpower)
 
     Result_df.loc[i, colnams[10]] = HP.Tevap
     Result_df.loc[i, colnams[11]] = HP.Tcond
@@ -372,17 +391,14 @@ for i in setpoints.index:
     ref = (HP.refstate_1, HP.refstate_2, HP.refstate_3, HP.refstate_3E, HP.refstate_4)
     for j in range(5):  # Writing refstates
 
-        Result_df.loc[i, headers[j*5]] = ref[j][0]
-        Result_df.loc[i, headers[j*5+1]] = ref[j][1] - K0  # Temperatur in Celsius
-        Result_df.loc[i, headers[j*5+2]] = ref[j][2] / 1.0E5  # Pressure in bar
-        Result_df.loc[i, headers[j*5+3]] = ref[j][3]   # Enthalpy
-        Result_df.loc[i, headers[j*5+4]] = ref[j][4]    # Density
+        Result_df.loc[i, headers[j * 5]] = ref[j][0]
+        Result_df.loc[i, headers[j * 5 + 1]] = ref[j][1] - K0  # Temperatur in Celsius
+        Result_df.loc[i, headers[j * 5 + 2]] = ref[j][2] / 1.0E5  # Pressure in bar
+        Result_df.loc[i, headers[j * 5 + 3]] = ref[j][3]  # Enthalpy
+        Result_df.loc[i, headers[j * 5 + 4]] = ref[j][4]  # Density
 
 Result_df.to_excel('..//output//Chiller_Result.xlsx')
 
+print("--- %s seconds ---" % (time.time() - start_time))
+
 print("ENDE")
-
-
-
-
-

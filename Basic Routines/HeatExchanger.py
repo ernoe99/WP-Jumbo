@@ -323,6 +323,7 @@ class iwt:  # special for Refrigerant / refrigerant
     def __init__(self, kA):
 
         self.kA = kA
+        self.power = -1.0e99
 
     def calculate(self, mrefL, hrefL, mrefG, hrefG, refrigerant, pcond, pevap):  # L liquid G gas overheated or twophase
 
@@ -349,6 +350,7 @@ class iwt:  # special for Refrigerant / refrigerant
         else:
             eps = (1 - math.exp(-ntu * (1 - cr))) / (1 - cr * math.exp(-ntu * (1 - cr)))
 
+        self.power = -q_max * eps
         return q_max * eps
 
     def calc(self, refstate_L, refstate_G, refrigerant):
@@ -366,6 +368,8 @@ class iwt:  # special for Refrigerant / refrigerant
             eps = ntu / (1 + ntu)
         else:
             eps = (1 - math.exp(-ntu * (1 - cr))) / (1 - cr * math.exp(-ntu * (1 - cr)))
+
+        self.power = -q_max * eps  # negativ, da für Verdampfer in LuftKM_OEMWT.solvebalance verwendet
 
         return q_max * eps
 
